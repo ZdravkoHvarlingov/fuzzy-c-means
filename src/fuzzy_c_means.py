@@ -1,43 +1,62 @@
 import numpy as np
-from numpy.core.fromnumeric import nonzero
-from numpy.core.numeric import indices
+from src.cluster_statistics import ClusterStatisticsInformator
 
 
 class FuzzyCMeans:
 
     NORMALIZED_MAX = 1
     FUZZINESS_COEFFICIENT = 2
-    EPSILON_THRESHOLD = 0.005
+    EPSILON_THRESHOLD = 0.01
 
-    def __init__(self, n_clusters):
+    def __init__(self, n_clusters=None):
         self._n_clusters = n_clusters
 
-    def fit(self, data):
-        data = self._normalize_data(data)
-        centroids = self._randomize_centroids(data)
-        assignments = self._get_cluster_assignments(data, centroids)
+    def fit(self, data, columns):
+        normalized_data = self._normalize_data(data, columns)
+
+        if self._n_clusters is not None:
+            centroids, assignments, _ = self._find_k_clusters(normalized_data, self._n_clusters)
+            ClusterStatisticsInformator.show_statistics(normalized_data, centroids, assignments)
+            return centroids, assignments
+        
+        min_score = -1
+        min_centroids = None
+        min_assignments = None
+        for n_clusters in range(1, 11):
+            centroids, assignments, score = self._find_k_clusters(normalized_data, n_clusters)
+            if min_score == -1 or min_score > score:
+                min_score = score
+                min_centroids = centroids
+                min_assignments = assignments
+        
+        return min_centroids, min_assignments  
+
+    def _find_k_clusters(self, data, n_clusters):
+        centroids = self._randomize_centroids(data, n_clusters)
+        assignments = self._get_cluster_assignments(data, centroids, n_clusters)
         change_occured = True
 
         iteration = 0
         while change_occured:
             print(f'Iteration: {iteration}.')
             centroids = self._calculate_mean_centroids(data, assignments)
-            new_assignments = self._get_cluster_assignments(data, centroids)
+            new_assignments = self._get_cluster_assignments(data, centroids, n_clusters)
             change_occured = self._measure_assignment_change(assignments, new_assignments)
             assignments = new_assignments
 
             iteration += 1
 
-        distances = self._calculate_point_centroid_distance(data, centroids)
-        print(f'Score: {self._sum_of_squares_score(data, distances, assignments, centroids)}.')
-        return centroids, assignments
+        distances = self._calculate_point_centroid_distance(data, centroids, n_clusters)
+        score = self._sum_of_squares_score(data, distances, assignments, centroids)
+        print(f'Score with {n_clusters} clusters: {score}')
+        return centroids, assignments, score
 
-    def _randomize_centroids(self, data):
-        indices = np.random.randint(0, len(data), size=(self._n_clusters))
+    def _randomize_centroids(self, data, n_clusters):
+        indices = np.random.randint(0, len(data), size=(n_clusters))
         return data[indices, :]
 
-    def _calculate_point_centroid_distance(self, data, centroids):
-        distances = np.zeros(shape=(data.shape[0], self._n_clusters))
+    def _calculate_point_centroid_distance(self, data, centroids, n_clusters):
+        distances = np.zeros(shape=(data.shape[0], n_clusters))
         for point_ind, point in enumerate(data):
             for centroid_ind, centroid in enumerate(centroids):
                 distances[point_ind][centroid_ind] = self._calculate_points_distance(point, centroid)
@@ -53,10 +72,10 @@ class FuzzyCMeans:
 
         return new_centroids / devider[:, None]
 
-    def _get_cluster_assignments(self, data, centroids):
-        point_centroid_distance = self._calculate_point_centroid_distance(data, centroids)
+    def _get_cluster_assignments(self, data, centroids, n_clusters):
+        point_centroid_distance = self._calculate_point_centroid_distance(data, centroids, n_clusters)
 
-        assignments = np.zeros(shape=(data.shape[0], self._n_clusters))
+        assignments = np.zeros(shape=(data.shape[0], n_clusters))
         for point_ind, _ in enumerate(data):
             centroids_distance_sum = np.sum(1 / (point_centroid_distance[point_ind, :] ** (2 / (self.FUZZINESS_COEFFICIENT - 1))))
             for centroid_ind, _ in enumerate(centroids):
@@ -68,7 +87,8 @@ class FuzzyCMeans:
     def _measure_assignment_change(self, old_assignment, new_assignment):
         return np.any(np.abs(old_assignment - new_assignment) > self.EPSILON_THRESHOLD)
 
-    def _normalize_data(self, data):
+    def _normalize_data(self, data, columns):
+        data = [[row[column] for column in columns] for row in data]
         data = np.array(data).astype(np.float)
         for i in range(data.shape[1]):
             column_max = np.max(data[:, i])
