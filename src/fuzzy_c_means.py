@@ -17,6 +17,7 @@ class FuzzyCMeans:
         if self._n_clusters is not None:
             centroids, assignments, _ = self._find_k_clusters(normalized_data, self._n_clusters)
             ClusterStatisticsInformator.show_statistics(normalized_data, centroids, assignments)
+            ClusterStatisticsInformator.save_assignments_to_file(assignments)
             return centroids, assignments
         
         min_score = -1
