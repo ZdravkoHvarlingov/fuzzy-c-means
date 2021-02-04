@@ -20,9 +20,10 @@ class ClusterStatisticsInformator:
         cluster_points = data[assignments_sorted]
         cluster_assignments = assignments[assignments_sorted]
 
+        np.set_printoptions(suppress=True, precision=3)
         print(f'############################################# Cluster {cluster_num}')
-        print(cluster_points[-5: cluster_points.shape[0], :])
-        print(cluster_assignments[-5: cluster_assignments.shape[0], :])
+        print(cluster_points[-10: cluster_points.shape[0], :])
+        print(cluster_assignments[-10: cluster_assignments.shape[0], :])
         print(centroid)
 
         plt.scatter(list(range(0, data.shape[0])), assignments[:, cluster_num], s=1)
