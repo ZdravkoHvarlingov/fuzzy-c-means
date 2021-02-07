@@ -1,7 +1,6 @@
 import csv
 import yaml
 from src.fuzzy_c_means import FuzzyCMeans
-import numpy as np
 
 
 def extract_csv_data():
@@ -16,7 +15,8 @@ def extract_config():
     with open('config/config.yml', 'r') as yml_file:
         return yaml.safe_load(yml_file)
 
-def initial_test():
+
+def start_up():
 
     data = extract_csv_data()
     config = extract_config()
@@ -28,8 +28,7 @@ def initial_test():
     print('##################################################################')
     print('\n\n')
     centroids, assignments = fuzzy_c_means.fit(data, config.get('columns'))
-    # print(assignments[0: 10])
 
 
 if __name__ == '__main__':
-    initial_test()
+    start_up()
